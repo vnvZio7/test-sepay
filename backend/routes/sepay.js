@@ -1,41 +1,30 @@
 const express = require("express");
 const axios = require("axios");
+const sendEmail = require("../emailService");
 const router = express.Router();
 
-const { SEPAY_API_BASE } = process.env;
-
-// Endpoint tạo payment
-router.post("/create-payment", async (req, res) => {
-  try {
-    const { amount } = req.body;
-
-    if (!amount || amount <= 0) {
-      return res.status(400).json({ message: "Số tiền không hợp lệ" });
-    }
-
-    // Ví dụ gọi API Sepay (thay URL theo tài liệu Sepay)
-    const response = await axios.post(
-      "https://api.sepay.vn/v1/transactions/create",
-      {
-        amount,
-        description: `Thanh toán đơn hàng - ${Date.now()}`,
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${SEPAY_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-      }
-    );
-
-    return res.json(response.data);
-  } catch (error) {
-    console.error(error.response?.data || error.message);
-    res.status(500).json({
-      message: "Lỗi tạo payment",
-      error: error.response?.data || error.message,
-    });
+// 2. Webhook từ Sepay
+router.post("/webhook", async (req, res) => {
+  const data = req.body;
+  const to = "21012100@st.phenikaa-uni.edu.vn";
+  const subject = "Xác nhận thanh toán thành công";
+  const html = `
+    <h2>Thanh toán thành công</h2>
+    <p>Xin chào,</p>
+    <p>Chúng tôi xác nhận bạn đã thanh toán thành công đơn hàng <strong>${
+      data.code
+    }</strong>.</p>
+    <p><strong>Số tiền:</strong> ${data.transferAmount.toLocaleString()} VNĐ</p>
+    <p>Cảm ơn bạn đã sử dụng dịch vụ của chúng tôi!</p>
+  `;
+  if (data) {
+    console.log(`✅ Thanh toán thành công: ${data.transferAmount} VND`);
+    await sendEmail({ to, subject, html });
+  } else {
+    console.log(`✅ Thanh toán that bai!`);
   }
+
+  res.status(200).json({ success: true, message: "OK" });
 });
 
 module.exports = router;
